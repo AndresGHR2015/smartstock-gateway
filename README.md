@@ -1,24 +1,25 @@
 # SmartStock · API Gateway
 
-Backend for Frontend de SmartStock. Expone una API GraphQL para la interfaz y coordina el acceso a Inventario, Ventas, Compras y al servicio de IA.
+Backend for Frontend de SmartStock. Expone una API GraphQL para la interfaz, reúne información de los tres microservicios y adapta sus protocolos internos a las consultas y acciones del operador.
 
 **Stack** · TypeScript, NestJS, Apollo Server, gRPC, Kafka y PostgreSQL.
 
-## Integraciones
+## Responsabilidades
 
-| Componente | Protocolo | Operación |
+- Exponer a la interfaz consultas de stock, ventas y compras, junto con las acciones para registrar ventas, analizar reposiciones y decidir sobre un borrador.
+- Componer respuestas que reúnen datos de más de un servicio y traducir errores a respuestas que pueda manejar el frontend.
+- Enviar solicitudes a Compras por Kafka y mantener una vista de consulta del estado de las operaciones asíncronas a partir de los eventos recibidos.
+- Iniciar análisis mediante la API REST interna del servicio MCP y ofrecer el acceso que sus herramientas necesitan para consultar datos y solicitar borradores.
+
+## Interfaces
+
+| Interlocutor | Canal | Propósito |
 |---|---|---|
-| Frontend | GraphQL | Consultar stock, registrar ventas e interactuar con la reposición. |
-| Inventario y Ventas | gRPC | Consultar existencias e historial, y enviar ventas a Ventas. |
-| Compras | Kafka | Publicar comandos de compra y consumir actualizaciones de estado. |
-| Servicio MCP | REST interno | Iniciar el análisis de reposición y exponer los datos y acciones que usan las herramientas. |
+| `smartstock-front` | GraphQL | Consultas y acciones de la interfaz de SmartStock. |
+| `smartstock-inventario` y `smartstock-ventas` | gRPC | Consultar stock e historial y registrar ventas. |
+| `smartstock-compras` | Kafka | Enviar solicitudes de compra y recibir sus resultados. |
+| `smartstock-mcp` | REST interno | Iniciar análisis y canalizar las consultas y acciones de las herramientas. |
 
-## Alcance del MVP
+## Límites y desarrollo
 
-La API debe permitir registrar una venta, ver el saldo actualizado, iniciar el análisis de una alerta y consultar y aprobar el borrador resultante. En las operaciones asíncronas, la interfaz puede mostrar un estado pendiente hasta recibir el resultado de Compras.
-
-El Gateway compone las respuestas para la interfaz y mantiene en PostgreSQL una vista de consulta del estado de las órdenes. Cada microservicio valida y persiste sus propias operaciones.
-
-## Primera verificación
-
-Enviar una mutación GraphQL de venta y comprobar que el Gateway la entrega a Ventas por gRPC. Los contratos de integración se mantienen en `smartstock-infra/contracts/`.
+El Gateway mantiene en su PostgreSQL la vista de consulta que sirve al frontend. Inventario, Ventas y Compras conservan la responsabilidad por sus datos y validaciones de negocio. El repositorio alberga el esquema GraphQL, los resolvers, los clientes de integración y sus pruebas. Los contratos entre servicios y el despliegue conjunto se mantienen en `smartstock-infra`.
