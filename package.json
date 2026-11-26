@@ -1,0 +1,49 @@
+{
+  "name": "smartstock-gateway",
+  "version": "1.0.0",
+  "description": "Backend for Frontend de SmartStock. Expone una API GraphQL para la interfaz, reúne información de los tres microservicios y adapta sus protocolos internos a las consultas y acciones del operador.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run build && node --test test/*.test.cjs",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndresGHR2015/smartstock-gateway.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AndresGHR2015/smartstock-gateway/issues"
+  },
+  "homepage": "https://github.com/AndresGHR2015/smartstock-gateway#readme",
+  "dependencies": {
+    "@apollo/server": "^5",
+    "@as-integrations/express5": "^1",
+    "@grpc/grpc-js": "^1.14.7",
+    "@grpc/proto-loader": "^0.8.1",
+    "@nestjs/apollo": "^13",
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/graphql": "^13",
+    "@nestjs/platform-express": "^11",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "graphql": "^16.15.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "typescript": "^6.0.3"
+  },
+  "private": true,
+  "overrides": {
+    "@graphql-tools/utils": "12.1.0"
+  }
+}
