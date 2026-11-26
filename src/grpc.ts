@@ -9,7 +9,7 @@ type UnaryClient = grpc.Client & Record<string, any>;
 
 function createClient(proto: string, service: string, address: string): UnaryClient {
   const path = join(process.cwd(), 'vendor/smartstock-infra/contracts/proto', proto);
-  const definition = protoLoader.loadSync(path, { keepCase: true, enums: String, defaults: true });
+  const definition = protoLoader.loadSync(path, { keepCase: true, enums: String, longs: String, defaults: true });
   const root = grpc.loadPackageDefinition(definition) as any;
   const constructor = root.smartstock[service].v1[`${service === 'inventory' ? 'Inventory' : 'Sales'}Service`];
   return new constructor(address, grpc.credentials.createInsecure()) as UnaryClient;
@@ -31,6 +31,14 @@ export class GrpcClients implements OnModuleDestroy {
 
   getProduct(sku: string): Promise<Response> {
     return this.call(this.inventory, 'GetProduct', { sku }, config.inventoryTimeoutMs);
+  }
+
+  getInventoryOverview(): Promise<Response> {
+    return this.call(this.inventory, 'GetInventoryOverview', {}, config.inventoryTimeoutMs);
+  }
+
+  getSalesOverview(): Promise<Response> {
+    return this.call(this.sales, 'GetSalesOverview', {}, config.salesTimeoutMs);
   }
 
   getSale(saleId: string): Promise<Response> {

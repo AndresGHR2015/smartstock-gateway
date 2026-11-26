@@ -24,10 +24,13 @@ async function startServer(definition, handlers) {
   return { server, port };
 }
 
-test('GraphQL over HTTP calls gRPC doubles and preserves a pending sale', async (t) => {
+test('GraphQL over HTTP reads dashboard sections and preserves a pending sale', async (t) => {
   const inventory = await startServer(service('inventory/v1/inventory.proto', 'inventory').InventoryService.service, {
     GetProduct: (call, callback) => callback(null, {
       result: 'FOUND', product: { sku: call.request.sku, name: 'Café', stock: 7, threshold: 2 },
+    }),
+    GetInventoryOverview: (_call, callback) => callback(null, {
+      critical_count: 1, attention: [{ sku: 'A', name: 'Café', stock: 2, threshold: 2 }],
     }),
     DeductStock: (_call, callback) => callback({ code: grpc.status.UNIMPLEMENTED, message: 'not used' }),
   });
@@ -38,6 +41,10 @@ test('GraphQL over HTTP calls gRPC doubles and preserves a pending sale', async 
     },
     GetSale: (call, callback) => callback(null, {
       result: 'FOUND', sale: { sale_id: call.request.sale_id, sku: 'A', quantity: 2, status: 'PENDING' },
+    }),
+    GetSalesOverview: (_call, callback) => callback(null, {
+      units_today: '2147483648',
+      recent: [{ sale_id: 'confirmed', sku: 'A', quantity: 2, created_at: '2026-11-26T01:00:00Z' }],
     }),
   });
   t.after(() => { inventory.server.forceShutdown(); sales.server.forceShutdown(); });
@@ -57,6 +64,19 @@ test('GraphQL over HTTP calls gRPC doubles and preserves a pending sale', async 
     });
     return response.json();
   }
+  const dashboard = await query(`{
+    inventoryOverview { criticalCount attention { sku stock } }
+    salesOverview { unitsToday recent { sku quantity createdAt } }
+    purchasesOverview { pendingCount }
+  }`);
+  assert.deepEqual(dashboard.data, {
+    inventoryOverview: { criticalCount: 1, attention: [{ sku: 'A', stock: 2 }] },
+    salesOverview: { unitsToday: 2147483648, recent: [{ sku: 'A', quantity: 2, createdAt: '2026-11-26T01:00:00Z' }] },
+    purchasesOverview: null,
+  });
+  assert.deepEqual(dashboard.errors.map((error) => [error.path, error.extensions.code]), [
+    [['purchasesOverview'], 'UPSTREAM_UNAVAILABLE'],
+  ]);
   const result = await query(
     'query($sku: String!, $id: ID!) { product(sku: $sku) { sku stock } sale(id: $id) { saleId status } }',
     { sku: 'A', id: 'sale-1' },

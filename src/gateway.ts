@@ -19,6 +19,16 @@ function graphError(code: 'INVALID_ARGUMENT' | 'UPSTREAM_UNAVAILABLE'): GraphQLE
   return new GraphQLError(code, { extensions: { code } });
 }
 
+function validCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function validProduct(product: any) {
+  return product && validText(product.sku) && typeof product.name === 'string' &&
+    validCount(product.stock) && product.stock <= 2147483647 &&
+    validCount(product.threshold) && product.threshold <= 2147483647;
+}
+
 function mapSale(sale: WireSale | undefined) {
   if (!sale || !validText(sale.sale_id) || !validText(sale.sku) ||
       !Number.isInteger(sale.quantity) || sale.quantity <= 0 || sale.quantity > 2147483647 ||
@@ -54,13 +64,46 @@ export class Gateway {
     if (response.result === 'NOT_FOUND') return null;
     if (response.result === 'INVALID_SKU') throw graphError('INVALID_ARGUMENT');
     const product = response.product;
-    if (response.result !== 'FOUND' || !product || !validText(product.sku) ||
-        typeof product.name !== 'string' ||
-        !Number.isInteger(product.stock) || product.stock < 0 || product.stock > 2147483647 ||
-        !Number.isInteger(product.threshold) || product.threshold < 0 || product.threshold > 2147483647) {
+    if (response.result !== 'FOUND' || !validProduct(product)) {
       throw graphError('UPSTREAM_UNAVAILABLE');
     }
     return product;
+  }
+
+  async inventoryOverview() {
+    try {
+      const { critical_count, attention } = await this.grpc.getInventoryOverview();
+      if (!validCount(critical_count) || !Array.isArray(attention) ||
+          attention.length > 4 || !attention.every(validProduct)) {
+        throw new Error('Invalid inventory overview');
+      }
+      return { criticalCount: critical_count, attention };
+    } catch {
+      throw graphError('UPSTREAM_UNAVAILABLE');
+    }
+  }
+
+  async salesOverview() {
+    try {
+      const { units_today, recent } = await this.grpc.getSalesOverview();
+      const unitsToday = Number(units_today);
+      if (typeof units_today !== 'string' || !/^\d+$/.test(units_today) || !validCount(unitsToday) ||
+          !Array.isArray(recent) || recent.length > 5) {
+        throw new Error('Invalid sales overview');
+      }
+      return {
+        unitsToday,
+        recent: recent.map((sale) => {
+          if (!validText(sale.sku) || !validCount(sale.quantity) || sale.quantity <= 0 ||
+              typeof sale.created_at !== 'string' || !Number.isFinite(Date.parse(sale.created_at))) {
+            throw new Error('Invalid recent sale');
+          }
+          return { sku: sale.sku, quantity: sale.quantity, createdAt: sale.created_at };
+        }),
+      };
+    } catch {
+      throw graphError('UPSTREAM_UNAVAILABLE');
+    }
   }
 
   async sale(id: string) {

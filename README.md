@@ -25,7 +25,7 @@ Gateway conserva un registro propio de solicitudes y resultados de Compras. Inve
 
 ## Primer bloque: GraphQL y gRPC
 
-El contrato efectivo es `vendor/smartstock-infra/contracts/graphql/schema.graphql`, de la revisión `c5867a8d48383dcadae2111eb2bf20770645e565`. También se cargan los `.proto` y esquemas Kafka de esa revisión en tiempo de ejecución. Antes de instalar o construir la imagen:
+El contrato efectivo es `vendor/smartstock-infra/contracts/graphql/schema.graphql`, de la revisión `9336529e839c465e1a28bc9976df7a177068ca94`. También se cargan los `.proto` y esquemas Kafka de esa revisión en tiempo de ejecución. Antes de instalar o construir la imagen:
 
 ```sh
 git submodule update --init --recursive

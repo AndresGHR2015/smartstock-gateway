@@ -19,6 +19,12 @@ function containsNul(value: unknown): boolean {
   return false;
 }
 
+type PurchaseOverview = {
+  pending_count: number;
+  open_order_count: number;
+  needs: { event_id: string; sku: string; occurred_at: string; status: string }[];
+};
+
 @Injectable()
 export class PurchasesService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PurchasesService.name);
@@ -28,6 +34,7 @@ export class PurchasesService implements OnModuleInit, OnModuleDestroy {
   private consumer?: Consumer;
   private timer?: ReturnType<typeof setInterval>;
   private dispatchTask?: Promise<void>;
+  private overviewTask?: Promise<PurchaseOverview>;
   private healthy = false;
   private readonly shutdown = new AbortController();
 
@@ -198,6 +205,24 @@ export class PurchasesService implements OnModuleInit, OnModuleDestroy {
     const row = await this.requireStore().get(requestId);
     if (!row) throw new NotFoundException('Solicitud no encontrada.');
     return this.view(row.request, row.result);
+  }
+
+  overview(): Promise<PurchaseOverview> {
+    this.overviewTask ??= this.readOverview().finally(() => { this.overviewTask = undefined; });
+    return this.overviewTask;
+  }
+
+  private async readOverview(): Promise<PurchaseOverview> {
+    if (!this.healthy) throw new ServiceUnavailableException('Compras no disponible.');
+    const { request_id } = await this.submit({ type: 'get_overview', payload: {} });
+    const deadline = Date.now() + 3500;
+    do {
+      const { result } = await this.get(request_id);
+      if (result?.outcome === 'OK') return result.data as PurchaseOverview;
+      if (result) break;
+      await delay(125, undefined, { signal: this.shutdown.signal });
+    } while (this.healthy && Date.now() < deadline);
+    throw new ServiceUnavailableException('Resumen de Compras no disponible.');
   }
 
   async retry(requestId: string) {

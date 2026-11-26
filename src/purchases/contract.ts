@@ -45,6 +45,9 @@ export function assertPurchaseCorrelation(request: PurchaseRequest, result: Purc
   const data = result.data!;
   let matches: boolean;
   switch (request.type) {
+    case 'get_overview':
+      matches = (data.needs as unknown[]).length <= (data.pending_count as number);
+      break;
     case 'get_need':
       matches = data.event_id === payload.event_id;
       break;
